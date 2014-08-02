@@ -45,6 +45,26 @@ var delays = {
 }
 
 function get_shows(cb, reminders) {
+
+  var options = {
+    host: 'http://bleb.org/tv/data/listings?channels=' +  + '&days=0,1',
+    port: 80,
+    path: '/page/scrape_me.html'
+  };
+  var req = http.get(options, function(response) {
+    // handle the response
+    var res_data = '';
+    response.on('data', function(chunk) {
+      res_data += chunk;
+    });
+    response.on('end', function() {
+      console.log(res_data);
+    });
+  });
+  req.on('error', function(err) {
+    console.log("Request error: " + err.message);
+  });
+
   cb({
     123994: {
       name: 'Mythbusters',
@@ -63,8 +83,10 @@ function get_JSON(name, cb) {
   });
 }
 
-function tweet(users_due, reminder, show) {
-  console.log(users_due, show.name + ' starts in ' + delays[reminder.delay]['human'] + ' at ' + show.time + ' on ' + show.channel + '. Don\'t miss it!');
+function tweet(users_due, reminder, shows) {
+  _(shows).each(function (show) {
+    console.log(users_due, show.name, 'starts in', delays[reminder.delay]['human'], 'at', show.time, 'on', show.channel, '. Don\'t miss it!');
+  });
 }
 
 function find_users(reminder_id) {
@@ -88,26 +110,28 @@ function find_users(reminder_id) {
 }
 
 function find_due_reminders(shows, reminders) {
-  var time = new Date(); // Now
+  var time = new Date().getTime(); // Now
 
   // Loop through reminders.
-  Object.keys(reminders).forEach(function (reminder_id) {
-    var reminder = reminders[reminder_id];
+  _(reminders).each(function (reminder, reminder_id) {
+    // Find all shows in listing for this reminder.
+    var shows_for_reminder = _(shows).where({showID: reminder.showID});
 
-    if (_(shows).has(reminder.showID)) {
-
-      var show = shows[reminder.showID];
-      var delayed_time = show.time.getTime() - delays[reminder.delay]['ms'];
-
+    // Filter to shows within 5m of now.
+    var shows_to_remind = _(shows_for_reminder).filter(function (show) {
+      // Find time reminder would be due for this show.
+      var time_for_reminder = show.time.getTime() - delays[reminder.delay]['ms'];
       // If reminder is due within -5m and +5m of now.
-      if (time.getTime() - five_min < delayed_time &&
-          time.getTime() + five_min >= delayed_time) {
+      return (time - five_min < time_for_reminder &&
+              time + five_min >= time_for_reminder);
+    });
 
-        // Tweet them!
-        users_due = find_users(reminder_id);
-        tweet(users_due, reminder, show);
-      }
+    if (shows_to_remind) {
+      // Tweet them!
+      users_due = find_users(reminder_id);
+      tweet(users_due, reminder, shows_to_remind);
     }
+
   });
 }
 
@@ -136,4 +160,9 @@ function main() {
 
 // Every 10m download listings for today and tomorrow, check for shows in
 //  reminders also in listings which are due reminders.
-setInterval(main, 5*(ten_min/600));
+var channels;
+get_JSON('channels', function (data) {
+  channels = data;
+  console.log(channels)
+  setInterval(main, 5*(ten_min/600));
+});
