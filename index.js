@@ -3,7 +3,8 @@ var http = require('http'),
   querystring = require('querystring'),
   fs = require('fs'),
   _ = require('underscore'),
-  jade = require('jade');
+  jade = require('jade'),
+  JSZip = require("jszip");
 
 var one_min = 1000 * 60;
 var five_min = one_min * 5;
@@ -44,37 +45,57 @@ var delays = {
   }
 }
 
-function get_shows(cb, reminders) {
-
+function dwnld_zip(host, path, cb) {
   var options = {
-    host: 'http://bleb.org/tv/data/listings?channels=' +  + '&days=0,1',
+    host: host,
     port: 80,
-    path: '/page/scrape_me.html'
+    path: path,
+    headers: {'user-agent': 'TV-Show Twitter Reminder (Dev) <mail@oliverfaircliff.com>'}
   };
-  var req = http.get(options, function(response) {
-    // handle the response
-    var res_data = '';
-    response.on('data', function(chunk) {
-      res_data += chunk;
+
+  var req = http.get(options, function (res) {
+    if (res.statusCode !== 200) {
+      console.log("Response error: " + res.statusCode);
+      return;
+    }
+
+    var data = [], dataLen = 0;
+
+    res.on('data', function(chunk) {
+      data.push(chunk);
+      dataLen += chunk.length;
     });
-    response.on('end', function() {
-      console.log(res_data);
+
+    res.on('end', function() {
+      var buf = new Buffer(dataLen);
+
+      for (var i=0, len=data.length, pos=0; i < len; i++) {
+        data[i].copy(buf, pos);
+        pos += data[i].length;
+      }
+
+      var zip = new JSZip(buf);
+      cb(zip);
     });
   });
+
   req.on('error', function(err) {
     console.log("Request error: " + err.message);
   });
+}
 
-  cb({
-    123994: {
-      name: 'Mythbusters',
-      time: t
-    },
-    123654: {
-      name: 'BBC News',
-      time: t2
+function get_shows(cb, reminders) {
+  dwnld_zip(
+    'bleb.org',
+    '/tv/data/listings?channels=' + channels.join(',') + '&days=0,1',
+    function (zip) {
+      var files = zip.files;
+
+      _(files).map(function (file, filename) {
+        
+      });
     }
-  });
+  );
 }
 
 function get_JSON(name, cb) {
@@ -163,6 +184,6 @@ function main() {
 var channels;
 get_JSON('channels', function (data) {
   channels = data;
-  console.log(channels)
-  setInterval(main, 5*(ten_min/600));
+  // setInterval(main, 5*(ten_min/600));
+  get_shows()
 });
