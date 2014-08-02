@@ -2,75 +2,12 @@ var http = require('http'),
   url = require('url'),
   querystring = require('querystring'),
   fs = require('fs'),
+  _ = require('underscore'),
   jade = require('jade');
 
 var one_min = 1000 * 60;
 var five_min = one_min * 5;
 var ten_min = one_min * 10;
-
-var users = {
-  'olls96': [1, 4, 6, 3],
-  'grit96': [3, 4, 5, 11, 14]
-};
-
-var reminders = {
-  1: {
-    showID: 123994,
-    delay: '10m'
-  },
-  2: {
-    showID: 123654,
-    delay: '30m'
-  },
-  3: {
-    showID: 121234,
-    delay: '30m'
-  },
-  4: {
-    showID: 123923,
-    delay: '30m'
-  },
-  5: {
-    showID: 654994,
-    delay: '30m'
-  },
-  6: {
-    showID: 234,
-    delay: '10m'
-  },
-  7: {
-    showID: 123994,
-    delay: '1d'
-  },
-  8: {
-    showID: 123654,
-    delay: '30m'
-  },
-  9: {
-    showID: 123994,
-    delay: '30m'
-  },
-  10: {
-    showID: 123994,
-    delay: '30m'
-  },
-  11: {
-    showID: 123994,
-    delay: '30m'
-  },
-  12: {
-    showID: 123994,
-    delay: '30m'
-  },
-  13: {
-    showID: 123994,
-    delay: '30m'
-  },
-  14: {
-    showID: 123994,
-    delay: '30m'
-  }
-}
 
 var delays = {
   '1d': {
@@ -107,72 +44,96 @@ var delays = {
   }
 }
 
-function contains(needle, haystack) {
-  return haystack.indexOf(needle) > -1;
-}
-
-var t = new Date();
-t.setMinutes(t.getMinutes() + 16)
-function get_shows(cb) {
-  cb([
-    {
+function get_shows(cb, reminders) {
+  cb({
+    123994: {
       name: 'Mythbusters',
-      showID: 123994,
       time: t
+    },
+    123654: {
+      name: 'BBC News',
+      time: t2
     }
-  ]);
+  });
 }
 
-function tweet(users_due, reminder_id, show) {
-  var reminder = reminders[reminder_id];
-  console.log(users_due, show.name + ' starts in ' + delays[reminder.delay]['human'] + ' at ' + show.time + '. Don\'t miss it!');
+function get_JSON(name, cb) {
+  fs.readFile(__dirname + '/' + name + '.json', 'utf8', function (err, data) {
+    cb(JSON.parse(data));
+  });
+}
+
+function tweet(users_due, reminder, show) {
+  console.log(users_due, show.name + ' starts in ' + delays[reminder.delay]['human'] + ' at ' + show.time + ' on ' + show.channel + '. Don\'t miss it!');
 }
 
 function find_users(reminder_id) {
-  var users_due = [];
+  get_JSON('users', function (users) {
 
-  Object.keys(users).forEach(function (username) {
-    var users_reminders = users[username];
+    // Find all users with reminder_id set.
+    var users_due = [];
+    var reminder_id = parseInt(reminder_id);
 
-    if (contains(parseInt(reminder_id), users_reminders)) {
-      users_due.push(username);
+    // Loop through all users.
+    Object.keys(users).forEach(function (username) {
+      var users_reminders = users[username]; // List of reminder_id's
+
+      if (_(users_reminders).contains(reminder_id)) {
+        users_due.push(username);
+      }
+    });
+
+    return users_due;
+  });
+}
+
+function find_due_reminders(shows, reminders) {
+  var time = new Date(); // Now
+
+  // Loop through reminders.
+  Object.keys(reminders).forEach(function (reminder_id) {
+    var reminder = reminders[reminder_id];
+
+    if (_(shows).has(reminder.showID)) {
+
+      var show = shows[reminder.showID];
+      var delayed_time = show.time.getTime() - delays[reminder.delay]['ms'];
+
+      // If reminder is due within -5m and +5m of now.
+      if (time.getTime() - five_min < delayed_time &&
+          time.getTime() + five_min >= delayed_time) {
+
+        // Tweet them!
+        users_due = find_users(reminder_id);
+        tweet(users_due, reminder, show);
+      }
     }
   });
-
-  return users_due;
 }
 
 function main() {
 
-  // Every 10m download listings for today and tomorrow, check for shows in
-  //  reminders also in listings which are due reminders.
-  setInterval(
-    function () {
-      get_shows(function (shows) {
-        var time = new Date();
+  // Get reminders and listings JSON.
+  var shows;
+  var reminders;
 
-        // Loop through reminders
-        Object.keys(reminders).forEach(function (reminder_id) {
-          var reminder = reminders[reminder_id];
+  // Run both requests async.
+  var done = _.after(2, function () {
+    find_due_reminders(shows, reminders);
+  });
 
-          shows.forEach(function (show) {
-            var delayed_time = show.time.getTime() - delays[reminder.delay]['ms'];
+  get_shows(function (data) {
+    shows = data;
+    done();
+  });
 
-            // If shows match and reminder is due within -5m and +5m
-            if (reminder.showID == show.showID &&
-                time.getTime() - five_min < delayed_time &&
-                time.getTime() + five_min >= delayed_time) {
+  get_JSON('reminders', function (data) {
+    reminders = data;
+    done();
+  });
 
-              users_due = find_users(reminder_id);
-              tweet(users_due, reminder_id, show);
-            }
-          });
-
-        });
-
-      });
-    }, ten_min
-  );
 }
 
-main();
+// Every 10m download listings for today and tomorrow, check for shows in
+//  reminders also in listings which are due reminders.
+setInterval(main, 5*(ten_min/600));
