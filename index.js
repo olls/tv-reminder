@@ -4,7 +4,9 @@ var http = require('http'),
   fs = require('fs'),
   _ = require('underscore'),
   jade = require('jade'),
-  JSZip = require("jszip");
+  JSZip = require('jszip'),
+  xml2js = require('xml2js'),
+  S = require('string');
 
 var one_min = 1000 * 60;
 var five_min = one_min * 5;
@@ -84,17 +86,65 @@ function dwnld_zip(host, path, cb) {
   });
 }
 
-function get_shows(cb, reminders) {
+function get_shows(cb) {
+  var shows = [];
+
   dwnld_zip(
     'bleb.org',
     '/tv/data/listings?channels=' + channels.join(',') + '&days=0,1',
-    function (zip) {
-      var files = zip.files;
+    (function (cb) { // Closure to get cb into the next callback.
+      return function (zip) {
+        var files = zip.files;
 
-      _(files).map(function (file, filename) {
-        
-      });
-    }
+        // This function called after all async parseString functions done.
+        var done = _.after(_(files).size(), function () {
+          cb(shows);
+        });
+
+        // Loop through every file.
+        _(files).each(function (file, filename) {
+          if (file.dir) {
+            // Don't care about directories.
+            done();
+            return;
+          }
+
+          // Extract JSON from the file.
+          var xml = file.asText();
+          xml2js.parseString(xml, function (err, res) {
+            if (err) {
+              console.log(err);
+              done();
+              return;
+            }
+
+            var channel = res.channel;
+
+            // Date for all shows in this listing.
+            var parts = channel['$'].date.split('/');
+            //                  year,     month,      day       Month is 0-indexed
+            var date = new Date(parts[2], parts[1]-1, parts[0]);
+
+            // Loop through programmes on channel.
+            _(channel.programme).each(function (show) {
+
+              // Add show time to date.
+              var show_date = new Date(date)
+              show_date.setHours(S(show.start).left(2).toInt())
+              show_date.setMinutes(S(show.start).right(2).toInt())
+
+              shows.push({
+                name: show.title[0],
+                time: show_date,
+                channel: channel['$'].id
+              });
+            });
+
+            done();
+          });
+        });
+      };
+    })(cb)
   );
 }
 
@@ -106,28 +156,30 @@ function get_JSON(name, cb) {
 
 function tweet(users_due, reminder, shows) {
   _(shows).each(function (show) {
-    console.log(users_due, show.name, 'starts in', delays[reminder.delay]['human'], 'at', show.time, 'on', show.channel, '. Don\'t miss it!');
+    console.log(S(users_due).toCSV(', ', null).s + ' ' + show.name + ' starts in ' + delays[reminder.delay]['human'] + ' at ' + show.time + ' on ' + show.channel + '. Don\'t miss it!');
   });
 }
 
-function find_users(reminder_id) {
-  get_JSON('users', function (users) {
+function find_users(reminder_id, cb) {
+  get_JSON('users', (function (reminder_id) {
+    // Closure to pass reminder_id to call back.
+    return function (users) {
 
-    // Find all users with reminder_id set.
-    var users_due = [];
-    var reminder_id = parseInt(reminder_id);
+      // Find all users with reminder_id set.
+      var users_due = [];
 
-    // Loop through all users.
-    Object.keys(users).forEach(function (username) {
-      var users_reminders = users[username]; // List of reminder_id's
+      // Loop through all users.
+      Object.keys(users).forEach(function (username) {
+        var users_reminders = users[username]; // List of reminder_id's
 
-      if (_(users_reminders).contains(reminder_id)) {
-        users_due.push(username);
-      }
-    });
+        if (_(users_reminders).contains(S(reminder_id).toInt())) {
+          users_due.push(username);
+        }
+      });
 
-    return users_due;
-  });
+      cb(users_due);
+    };
+  })(reminder_id));
 }
 
 function find_due_reminders(shows, reminders) {
@@ -136,7 +188,7 @@ function find_due_reminders(shows, reminders) {
   // Loop through reminders.
   _(reminders).each(function (reminder, reminder_id) {
     // Find all shows in listing for this reminder.
-    var shows_for_reminder = _(shows).where({showID: reminder.showID});
+    var shows_for_reminder = _(shows).where({name: reminder.showName});
 
     // Filter to shows within 5m of now.
     var shows_to_remind = _(shows_for_reminder).filter(function (show) {
@@ -147,10 +199,12 @@ function find_due_reminders(shows, reminders) {
               time + five_min >= time_for_reminder);
     });
 
-    if (shows_to_remind) {
+    if (_(shows_to_remind).size() > 0) {
       // Tweet them!
-      users_due = find_users(reminder_id);
-      tweet(users_due, reminder, shows_to_remind);
+      console.log(reminder_id)
+      find_users(reminder_id, function (users_due) {
+        tweet(users_due, reminder, shows_to_remind);
+      });
     }
 
   });
@@ -181,9 +235,8 @@ function main() {
 
 // Every 10m download listings for today and tomorrow, check for shows in
 //  reminders also in listings which are due reminders.
-var channels;
+var channels; // Load our list of channels on startup.
 get_JSON('channels', function (data) {
   channels = data;
-  // setInterval(main, 5*(ten_min/600));
-  get_shows()
+  setInterval(main, 5*(ten_min/600));
 });

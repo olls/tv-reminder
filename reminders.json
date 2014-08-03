@@ -1,58 +1,58 @@
 {
   "1": {
-    "showID": 123994,
+    "showName": "Adventure Time",
     "delay": "10m"
   },
   "2": {
-    "showID": 123654,
+    "showName": "Mythbusters",
     "delay": "20m"
   },
   "3": {
-    "showID": 121234,
-    "delay": "30m"
+    "showName": "Dani's House",
+    "delay": "10m"
   },
   "4": {
-    "showID": 123923,
+    "showName": "Storage Wars Canada",
     "delay": "30m"
   },
   "5": {
-    "showID": 654994,
+    "showName": "Wheeler Dealers",
     "delay": "30m"
   },
   "6": {
-    "showID": 234,
+    "showName": "How Do They Do It?",
     "delay": "10m"
   },
   "7": {
-    "showID": 123994,
+    "showName": "Reign of the Dinosaurs",
     "delay": "1d"
   },
   "8": {
-    "showID": 123654,
+    "showName": "How It's Made",
     "delay": "30m"
   },
   "9": {
-    "showID": 123994,
+    "showName": "Fast N' Loud",
     "delay": "30m"
   },
   "10": {
-    "showID": 123994,
+    "showName": "New: The Twin Inside Me",
     "delay": "30m"
   },
   "11": {
-    "showID": 123994,
+    "showName": "Mythbusters",
     "delay": "30m"
   },
   "12": {
-    "showID": 123994,
+    "showName": "Mythbusters",
     "delay": "30m"
   },
   "13": {
-    "showID": 123994,
+    "showName": "Gold Rush",
     "delay": "30m"
   },
   "14": {
-    "showID": 123994,
+    "showName": "Mythbusters",
     "delay": "30m"
   }
 }

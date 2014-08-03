@@ -9,6 +9,7 @@
     "node-schedule": "~0.1.13",
     "underscore": "~1.6.0",
     "xml2js": "~0.4.4",
-    "jszip": "~2.4.0"
+    "jszip": "~2.4.0",
+    "string": "~1.9.0"
   }
 }
