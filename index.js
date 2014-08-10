@@ -194,7 +194,9 @@ function find_due_reminders(shows, reminders) {
   // Loop through reminders.
   _(reminders).each(function (reminder, reminder_id) {
     // Find all shows in listing for this reminder.
-    var shows_for_reminder = _(shows).where({name: reminder.showName});
+    var shows_for_reminder = _(shows).filter(function (show) {
+      return show.name.toUpperCase() == reminder.showName.toUpperCase();
+    });
 
     // Filter to shows within 5m of now.
     var shows_to_remind = _(shows_for_reminder).filter(function (show) {
