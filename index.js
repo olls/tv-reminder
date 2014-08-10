@@ -3,10 +3,10 @@ var http = require('http'),
   querystring = require('querystring'),
   fs = require('fs'),
   _ = require('underscore'),
+  S = require('string'),
   jade = require('jade'),
   JSZip = require('jszip'),
-  xml2js = require('xml2js'),
-  S = require('string');
+  xml2js = require('xml2js');
 
 var one_min = 1000 * 60;
 var five_min = one_min * 5;
@@ -63,21 +63,25 @@ function dwnld_zip(host, path, cb) {
 
     var data = [], dataLen = 0;
 
+    // Collect the data.
     res.on('data', function(chunk) {
       data.push(chunk);
       dataLen += chunk.length;
     });
 
     res.on('end', function() {
+
+      // Reform the data.
       var buf = new Buffer(dataLen);
 
       for (var i=0, len=data.length, pos=0; i < len; i++) {
         data[i].copy(buf, pos);
         pos += data[i].length;
       }
-
+      // Unzip it
       var zip = new JSZip(buf);
       cb(zip);
+
     });
   });
 
@@ -156,7 +160,9 @@ function get_JSON(name, cb) {
 
 function tweet(users_due, reminder, shows) {
   _(shows).each(function (show) {
-    console.log(S(users_due).toCSV(', ', null).s + ' ' + show.name + ' starts in ' + delays[reminder.delay]['human'] + ' at ' + show.time + ' on ' + show.channel + '. Don\'t miss it!');
+    _(users_due).each(function (user) {
+      console.log(S(user).ensureLeft('@').s + ' ' + show.name + ' starts in ' + delays[reminder.delay]['human'] + ' on ' + show.channel + '. Don\'t miss it!');
+    });
   });
 }
 
@@ -201,7 +207,6 @@ function find_due_reminders(shows, reminders) {
 
     if (_(shows_to_remind).size() > 0) {
       // Tweet them!
-      console.log(reminder_id)
       find_users(reminder_id, function (users_due) {
         tweet(users_due, reminder, shows_to_remind);
       });
