@@ -1,0 +1,9 @@
+extends layout
+
+block content
+  h1= title
+  p Welcome, sign up for Twitter reminders for your favourite shows. You'll get a Tweet whenever your show is about to start!
+  p
+    form(action='login', method='GET')
+      label Sign in to add a reminder: 
+      input(type='submit', value='Sign In')

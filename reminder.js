@@ -1,12 +1,15 @@
-var http = require('http'),
-  url = require('url'),
-  querystring = require('querystring'),
-  fs = require('fs'),
-  _ = require('underscore'),
-  S = require('string'),
-  jade = require('jade'),
-  JSZip = require('jszip'),
-  xml2js = require('xml2js');
+var http = require('http')
+  , url = require('url')
+  , querystring = require('querystring')
+  , fs = require('fs')
+  , _ = require('underscore')
+  , S = require('string')
+  , jade = require('jade')
+  , JSZip = require('jszip')
+  , xml2js = require('xml2js')
+  , jf = require('jsonfile')
+  , path = require('path')
+  , channels = require('./channels.json');
 
 var one_min = 1000 * 60;
 var five_min = one_min * 5;
@@ -152,12 +155,6 @@ function get_shows(cb) {
   );
 }
 
-function get_JSON(name, cb) {
-  fs.readFile(__dirname + '/' + name + '.json', 'utf8', function (err, data) {
-    cb(JSON.parse(data));
-  });
-}
-
 function tweet(users_due, reminder, shows) {
   _(shows).each(function (show) {
     _(users_due).each(function (user) {
@@ -167,7 +164,7 @@ function tweet(users_due, reminder, shows) {
 }
 
 function find_users(reminder_id, cb) {
-  get_JSON('users', (function (reminder_id) {
+  jf.readFile('users.json', (function (reminder_id) {
     // Closure to pass reminder_id to call back.
     return function (users) {
 
@@ -217,7 +214,7 @@ function find_due_reminders(shows, reminders) {
   });
 }
 
-function main() {
+main = function () {
 
   // Get reminders and listings JSON.
   var shows;
@@ -233,7 +230,7 @@ function main() {
     done();
   });
 
-  get_JSON('reminders', function (data) {
+  jf.readFile('reminders.json', function (data) {
     reminders = data;
     done();
   });
@@ -242,8 +239,4 @@ function main() {
 
 // Every 10m download listings for today and tomorrow, check for shows in
 //  reminders also in listings which are due reminders.
-var channels; // Load our list of channels on startup.
-get_JSON('channels', function (data) {
-  channels = data;
-  setInterval(main, 5*(ten_min/600));
-});
+setInterval(main, 5*(ten_min/600));

@@ -1,4 +1,29 @@
 {
-  "olls96": [1, 4, 6, 3],
-  "grit96": [3, 4, 5, 11, 2, 14]
+  "olls96": {
+    "reminder_ids": [
+      1,
+      4,
+      6,
+      3
+    ],
+    "access_token": "###",
+    "access_token_secret": "####"
+  },
+  "grit96": {
+    "reminder_ids": [
+      3,
+      4,
+      5,
+      11,
+      2,
+      14
+    ],
+    "access_token": "###",
+    "access_token_secret": "####"
+  },
+  "tv_reminder": {
+    "reminder_ids": [],
+    "access_token": "2704498358-trHM2R4HZHkpx4yOzPdxMKIEyfUdDBEw21ier3q",
+    "access_token_secret": "CTC3B1kpU7UJ1XObAZdm3M2JwVVNdQOHFESDNxRrbdmvT"
+  }
 }
